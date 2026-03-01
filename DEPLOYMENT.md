@@ -84,12 +84,15 @@ The frontend was unable to communicate with the backend because it was using rel
 - Check Vercel logs for both frontend and backend
 
 ### CORS Error (Access-Control-Allow-Origin)
-- Backend has CORS configured to allow:
-  - `https://amdslingshot-frontend.vercel.app`
-  - `https://*.vercel.app` (all Vercel preview deployments)
-  - `http://localhost:5173` (local development)
-- If you change the frontend domain, update `app.py` CORS origins list
-- Redeploy backend after CORS changes
+- **Configured:** Backend allows requests from Vercel deployments and localhost
+- Allowed origins:
+  - Any Vercel deployment URL ending with `.vercel.app`
+    - Production: `https://amdslingshot-frontend.vercel.app`
+    - Preview: `https://amdslingshot-frontend-git-*.vercel.app`
+    - All other Vercel URLs: `https://*-<username>-projects.vercel.app`
+  - Local development: `http://localhost:*`
+- This covers all Vercel deployment variations while maintaining security
+- After updating CORS settings, always redeploy the backend
 - Clear browser cache and try again
 
 ### CORS Error

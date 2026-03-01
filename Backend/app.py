@@ -13,18 +13,33 @@ from routes.analyze import analyze_bp
 def create_app():
     app = Flask(__name__)
     
-    # Configure CORS to allow frontend domains
+    # Custom CORS origin validator
+    def is_allowed_origin(origin):
+        """
+        Allow requests from:
+        - Your Vercel deployments (e.g., amdslingshot-frontend.vercel.app)
+        - Local development servers
+        """
+        if not origin:
+            return False
+        
+        # Allow localhost for development
+        if origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:"):
+            return True
+        
+        # Allow all Vercel app deployments
+        if origin.startswith("https://") and origin.endswith(".vercel.app"):
+            return True
+        
+        return False
+    
+    # Configure CORS with custom origin validator
     CORS(app, resources={
-        r"/api/*": {
-            "origins": [
-                "http://localhost:5173",  # Vite dev server
-                "http://localhost:5174",
-                "http://localhost:3000",
-                "https://amdslingshot-frontend.vercel.app",
-                "https://*.vercel.app"  # Allow all Vercel preview deployments
-            ],
+        r"/*": {
+            "origins": is_allowed_origin,  # Use function to validate origins
             "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "expose_headers": ["Content-Type"],
             "supports_credentials": False
         }
     })
