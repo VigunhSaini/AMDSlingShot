@@ -1,4 +1,4 @@
-# 🚀 MergePilot
+# MergePilot
 
 > **Your AI-powered copilot for smarter, faster Pull Request merges.**
 
@@ -12,7 +12,7 @@ MergePilot analyzes pull requests in real time to predict their merge probabilit
 
 ---
 
-## 🌐 Live Demo
+## Live Demo
 
 👉 **[https://amdslingshot-frontend.vercel.app/](https://amdslingshot-frontend.vercel.app/)**
 
@@ -30,12 +30,12 @@ Whether you're a solo dev wanting faster review cycles or a team lead looking to
 
 ---
 
-## ✨ Features
+## Features
 
-### 🔮 Merge Probability Prediction
+### Merge Probability Prediction
 Submit any GitHub PR URL and get an instant confidence score (0–100%) predicting the likelihood of it being merged, based on code quality signals, PR hygiene, and historical patterns.
 
-### 🛠️ Actionable Developer Feedback
+### Actionable Developer Feedback
 MergePilot doesn't just score your PR — it breaks down exactly what's dragging your score down and gives you a prioritized checklist of improvements:
 - Missing or thin PR description
 - Uncommitted or unreviewed files
@@ -43,22 +43,22 @@ MergePilot doesn't just score your PR — it breaks down exactly what's dragging
 - Large diff size warnings
 - Stale branches or merge conflicts
 
-### 📊 Multi-Dimensional PR Analysis
+### Multi-Dimensional PR Analysis
 Your PR is evaluated across several key dimensions:
 - **Code Quality** — diff complexity, coupling, file churn
 - **PR Hygiene** — title clarity, description completeness, label usage
 - **Review Readiness** — reviewer assignment, CI status, linked issues
 - **Historical Context** — patterns from similar past PRs in the repo
 
-### ⚡ Fast & Lightweight
+### Fast & Lightweight
 The backend is deployed serverlessly on Vercel, meaning zero cold-start headaches and near-instant analysis results.
 
-### 🌐 Clean Web UI
+### Clean Web UI
 A responsive frontend interface lets you paste a PR URL, hit analyze, and get a visual breakdown of your score and improvement tips — no CLI, no config, no friction.
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 MergePilot/
@@ -76,7 +76,7 @@ MergePilot/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -150,7 +150,7 @@ Visit `http://localhost:5173`, paste a GitHub PR URL, and hit **Analyze** 🎯
 ---
 
 
-## 🌍 Deployment
+## Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for full deployment instructions.
 
@@ -171,7 +171,7 @@ vercel --prod
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome and appreciated! Here's how to get involved:
 
@@ -195,8 +195,10 @@ This project is licensed under the [MIT License](LICENSE).
 
 **Vigunh Saini**
 - GitHub: [@VigunhSaini](https://github.com/VigunhSaini)
+
 **Pranat Kheria**
 - GitHub: [@kpranat](https://github.com/kpranat)
+
 **Srijan**
 - GitHub: [@Srijan78](https://github.com/Srijan78)
 
