@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const SCAN_MESSAGES = [
     'Scanning structural patterns…',
-    'Analyzing contributor signals…',
+    'Predicting',
     'Computing behavioral graph…',
     'Evaluating merge probability…',
 ];
@@ -107,9 +107,28 @@ export default function PRInputForm({ appState, onScanStart, onScanComplete, err
                             <div className="flex flex-col items-center">
                                 <h1
                                     className="text-[72px] font-black text-gradient-cyan glow-text-cyan"
-                                    style={{ letterSpacing: '0.3em', lineHeight: 1 }}
+                                    style={{ letterSpacing: '0.15em', lineHeight: 1 }}
                                 >
-                                    PREDICT
+                                    PREDICTING
+                                    {[0, 1, 2].map((i) => (
+                                        <motion.span
+                                            key={i}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ 
+                                                opacity: [0, 0, 1, 1, 0],
+                                                scale: [0.8, 0.8, 1.2, 1.2, 0.8]
+                                            }}
+                                            transition={{
+                                                duration: 1,
+                                                delay: i * 0.15,
+                                                repeat: Infinity,
+                                                ease: 'easeInOut',
+                                            }}
+                                            style={{ display: 'inline-block' }}
+                                        >
+                                            .
+                                        </motion.span>
+                                    ))}
                                 </h1>
                                 <div className="mt-3 flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse inline-block" />
@@ -130,24 +149,62 @@ export default function PRInputForm({ appState, onScanStart, onScanComplete, err
                                 <div style={{ height: '36px', overflow: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
                                     <motion.h1
                                         className="text-[72px] font-black text-gradient-cyan glow-text-cyan"
-                                        style={{ letterSpacing: '0.3em', lineHeight: 1 }}
+                                        style={{ letterSpacing: '0.15em', lineHeight: 1 }}
                                         initial={{ y: 0, opacity: 1 }}
                                         animate={{ y: '-100%', opacity: 0 }}
                                         transition={{ duration: 0.42, ease: easeInOut }}
                                     >
-                                        PREDICT
+                                        PREDICTING
+                                        {[0, 1, 2].map((i) => (
+                                            <motion.span
+                                                key={i}
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ 
+                                                    opacity: [0, 0, 1, 1, 0],
+                                                    scale: [0.8, 0.8, 1.2, 1.2, 0.8]
+                                                }}
+                                                transition={{
+                                                    duration: 1,
+                                                    delay: i * 0.15,
+                                                    repeat: Infinity,
+                                                    ease: 'easeInOut',
+                                                }}
+                                                style={{ display: 'inline-block' }}
+                                            >
+                                                .
+                                            </motion.span>
+                                        ))}
                                     </motion.h1>
                                 </div>
                                 {/* Bottom half: flex-end pushes text bottom to container bottom → overflow crops top half → we see bottom 36px */}
                                 <div style={{ height: '36px', overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                                     <motion.h1
                                         className="text-[72px] font-black text-gradient-cyan glow-text-cyan"
-                                        style={{ letterSpacing: '0.3em', lineHeight: 1 }}
+                                        style={{ letterSpacing: '0.15em', lineHeight: 1 }}
                                         initial={{ y: 0, opacity: 1 }}
                                         animate={{ y: '100%', opacity: 0 }}
                                         transition={{ duration: 0.42, ease: easeInOut }}
                                     >
-                                        PREDICT
+                                        PREDICTING
+                                        {[0, 1, 2].map((i) => (
+                                            <motion.span
+                                                key={i}
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ 
+                                                    opacity: [0, 0, 1, 1, 0],
+                                                    scale: [0.8, 0.8, 1.2, 1.2, 0.8]
+                                                }}
+                                                transition={{
+                                                    duration: 1,
+                                                    delay: i * 0.15,
+                                                    repeat: Infinity,
+                                                    ease: 'easeInOut',
+                                                }}
+                                                style={{ display: 'inline-block' }}
+                                            >
+                                                .
+                                            </motion.span>
+                                        ))}
                                     </motion.h1>
                                 </div>
                             </motion.div>
@@ -304,6 +361,29 @@ export default function PRInputForm({ appState, onScanStart, onScanComplete, err
                                         className="text-brand-400/80 font-mono text-xs tracking-wide"
                                     >
                                         {SCAN_MESSAGES[scanMsgIdx]}
+                                        {SCAN_MESSAGES[scanMsgIdx] === 'Predicting' && (
+                                            <>
+                                                {[0, 1, 2].map((i) => (
+                                                    <motion.span
+                                                        key={i}
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ 
+                                                            opacity: [0, 0, 1, 1, 0],
+                                                            scale: [0.8, 0.8, 1.2, 1.2, 0.8]
+                                                        }}
+                                                        transition={{
+                                                            duration: 1,
+                                                            delay: i * 0.15,
+                                                            repeat: Infinity,
+                                                            ease: 'easeInOut',
+                                                        }}
+                                                        style={{ display: 'inline-block' }}
+                                                    >
+                                                        .
+                                                    </motion.span>
+                                                ))}
+                                            </>
+                                        )}
                                     </motion.span>
                                 </AnimatePresence>
                             </div>

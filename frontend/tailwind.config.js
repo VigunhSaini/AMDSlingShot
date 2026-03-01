@@ -54,11 +54,22 @@ export default {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'spin-slow': 'spin 8s linear infinite',
         'float': 'float 6s ease-in-out infinite',
+        'ripple': 'ripple 1s ease-out forwards',
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        ripple: {
+          '0%': { 
+            transform: 'translate(-50%, -50%) scale(0)',
+            opacity: '1',
+          },
+          '100%': { 
+            transform: 'translate(-50%, -50%) scale(1)',
+            opacity: '0',
+          },
         },
       },
       backdropBlur: {

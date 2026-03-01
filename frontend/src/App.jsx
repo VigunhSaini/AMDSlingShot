@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import AnimatedBackground from './components/AnimatedBackground';
+import FluidCursor from './components/FluidCursor';
 import Header from './components/Header';
 import PRInputForm from './components/PRInputForm';
 import AnalysisDashboard from './components/AnalysisDashboard';
@@ -64,8 +65,11 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Fixed neural background — always present, intensity-aware */}
-      <AnimatedBackground isScanning={isScanning} />
+      {/* Fluid cursor effect — on all pages */}
+      <FluidCursor />
+      
+      {/* Particle background — only on dashboard/analyzer page */}
+      {!showLanding && <AnimatedBackground isScanning={isScanning} />}
 
       {/* ── DASHBOARD LAYER — sits behind, scales in ───────────────────── */}
       <AnimatePresence>
