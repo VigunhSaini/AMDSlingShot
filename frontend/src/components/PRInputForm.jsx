@@ -8,7 +8,7 @@ const SCAN_MESSAGES = [
     'Evaluating merge probability…',
 ];
 
-export default function PRInputForm({ appState, onScanStart, onScanComplete }) {
+export default function PRInputForm({ appState, onScanStart, onScanComplete, error }) {
     const [url, setUrl] = useState('');
     const [isFocused, setIsFocused] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -46,9 +46,9 @@ export default function PRInputForm({ appState, onScanStart, onScanComplete }) {
         e.preventDefault();
         if (!url.trim() || isLoading) return;
         onScanStart();
-        // Scanning delay: 1.5s
-        await new Promise(r => setTimeout(r, 1500));
-        onScanComplete(url);
+        // The actual API call happens in App.jsx via onScanComplete
+        // which is now async — the scanning animation plays while it runs
+        await onScanComplete(url);
     };
 
     const easeInOut = [0.4, 0, 0.2, 1];
@@ -325,15 +325,25 @@ export default function PRInputForm({ appState, onScanStart, onScanComplete }) {
                 </AnimatePresence>
             </form>
 
-            {/* Demo hint */}
-            <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isScanning ? 0 : 1 }}
-                transition={{ duration: 0.3 }}
-                className="text-center text-white/20 text-xs mt-6 font-mono"
-            >
-                Try any GitHub PR URL · AI will simulate analysis
-            </motion.p>
+            {/* Error / Demo hint */}
+            {error ? (
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-center"
+                >
+                    <p className="text-red-400 text-sm font-mono">{error}</p>
+                </motion.div>
+            ) : (
+                <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: isScanning ? 0 : 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center text-white/20 text-xs mt-6 font-mono"
+                >
+                    Try any GitHub PR URL · AI will analyze your PR
+                </motion.p>
+            )}
         </motion.div>
     );
 }
