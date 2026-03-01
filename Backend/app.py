@@ -15,15 +15,14 @@ def create_app():
     
     # Configure CORS to allow all origins
     # This is safe for a public API that analyzes GitHub PRs
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Type"],
-            "supports_credentials": False
-        }
-    })
+    CORS(app, 
+         resources={r"/api/*": {"origins": "*"}},
+         supports_credentials=False,
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Accept-Version", "Content-Length", "Content-MD5", "Date", "X-Api-Version"],
+         methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+         expose_headers=["Content-Type"],
+         max_age=3600
+    )
     
     app.register_blueprint(analyze_bp)
     return app
