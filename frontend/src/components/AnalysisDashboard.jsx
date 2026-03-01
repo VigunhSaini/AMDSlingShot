@@ -44,10 +44,46 @@ const TABS = [
 
 export default function AnalysisDashboard({ prUrl, data }) {
     const [activeTab, setActiveTab] = useState('summary');
-
-    const currentScore = computeProbability(data?.baseProbability || 50, {});
+    
     const explanation = data?.aiExplanation || '';
-    const aiSuggestions = useMemo(() => extractAISuggestions(explanation), [explanation]);
+    const parsedSuggestions = useMemo(() => extractAISuggestions(explanation), [explanation]);
+    
+    // Initialize suggestions with enabled state
+    const [aiSuggestions, setAiSuggestions] = useState([]);
+    
+    // Initialize suggestions when parsedSuggestions changes
+    useMemo(() => {
+        if (parsedSuggestions.length > 0) {
+            setAiSuggestions(parsedSuggestions.map(s => ({
+                ...s,
+                enabled: false
+            })));
+        }
+    }, [parsedSuggestions]);
+    
+    // Calculate current score based on enabled suggestions
+    const currentScore = useMemo(() => {
+        const baseScore = data?.baseProbability || 50;
+        const totalIncrease = aiSuggestions
+            .filter(s => s.enabled)
+            .reduce((sum, s) => sum + (s.increase || 0), 0);
+        return Math.min(100, baseScore + totalIncrease);
+    }, [data?.baseProbability, aiSuggestions]);
+    
+    // Toggle handler for suggestions
+    const handleToggleSuggestion = (index) => {
+        setAiSuggestions(prev => prev.map((s, i) => 
+            i === index ? { ...s, enabled: !s.enabled } : s
+        ));
+    };
+    
+    // Build activeToggles object for SimulationPanel
+    const activeToggles = useMemo(() => {
+        return aiSuggestions.reduce((acc, s, i) => {
+            acc[`suggestion-${i}`] = s.enabled;
+            return acc;
+        }, {});
+    }, [aiSuggestions]);
 
     if (!data) return null;
 
@@ -168,6 +204,7 @@ export default function AnalysisDashboard({ prUrl, data }) {
                                         <SuggestionsPanel
                                             aiSuggestions={aiSuggestions}
                                             inline
+                                            onToggle={handleToggleSuggestion}
                                         />
                                     </motion.div>
                                 )}
@@ -181,7 +218,7 @@ export default function AnalysisDashboard({ prUrl, data }) {
                     <SimulationPanel
                         currentScore={currentScore}
                         baseScore={data.baseProbability}
-                        activeToggles={{}}
+                        activeToggles={activeToggles}
                     />
                 </div>
             </motion.div>

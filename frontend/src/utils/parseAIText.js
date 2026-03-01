@@ -42,6 +42,37 @@ function parseNumberedItems(bodyLines) {
     return items;
 }
 
+// Extract numbered suggestion items WITH percentages from the "suggest" section
+function parseNumberedItemsWithPercentage(bodyLines) {
+    const text = bodyLines.join('\n');
+    const items = [];
+    const re = /\d+\.\s*([\s\S]+?)(?=\n\d+\.|\s*$)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const fullText = m[1].trim();
+        
+        // Look for "increase = +X%" pattern
+        const percentMatch = fullText.match(/increase\s*=\s*\+(\d+)%/i);
+        const percentage = percentMatch ? parseInt(percentMatch[1], 10) : 0;
+        
+        // Remove the percentage line from the suggestion text
+        const suggestionText = stripMarkup(
+            fullText
+                .replace(/increase\s*=\s*\+\d+%/gi, '')
+                .replace(/\n/g, ' ')
+                .trim()
+        );
+        
+        if (suggestionText) {
+            items.push({
+                text: suggestionText,
+                increase: percentage
+            });
+        }
+    }
+    return items;
+}
+
 // Extract numbered suggestion items from the "suggest" section of AI text
 export function extractAISuggestions(raw) {
     if (!raw) return [];
@@ -50,7 +81,7 @@ export function extractAISuggestions(raw) {
         s => s.heading && /suggest/i.test(s.heading)
     );
     if (!suggestSection) return [];
-    return parseNumberedItems(suggestSection.body);
+    return parseNumberedItemsWithPercentage(suggestSection.body);
 }
 
 // Return AI text with the suggestions section removed, emojis and bold stripped
