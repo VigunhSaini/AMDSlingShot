@@ -17,8 +17,10 @@ def create_app():
     return app
 
 
+# Create the app instance for Vercel
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     print("=" * 50)
     print("  AMDSlingShot Backend — Flask API")
     print("  Running on http://localhost:5000")

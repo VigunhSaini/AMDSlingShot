@@ -10,6 +10,7 @@ Usage:
     python groq_review.py path/to/prediction_result.json
 """
 
+import os
 import sys
 import json
 from pathlib import Path
@@ -185,7 +186,13 @@ Now share your review with the contributor, following the required structure."""
 # ─────────────────────────────────────────────
 
 def _load_api_key() -> str:
-    """Load GROQ_API_KEY from .env file."""
+    """Load GROQ_API_KEY from environment variables or .env file."""
+    # First, try to get from environment variables (works with Vercel)
+    api_key = os.environ.get("GROQ_API_KEY")
+    if api_key:
+        return api_key
+    
+    # Fallback: try to load from .env file (local development)
     env_file = BASE_DIR / ".env"
     if env_file.exists():
         for line in env_file.read_text(encoding="utf-8").splitlines():
@@ -196,8 +203,8 @@ def _load_api_key() -> str:
                 if value:
                     return value
 
-    print("[ERROR] GROQ_API_KEY not found in .env file.")
-    print("  Add GROQ_API_KEY=gsk_... to your .env file.")
+    print("[ERROR] GROQ_API_KEY not found in environment variables or .env file.")
+    print("  Add GROQ_API_KEY=gsk_... to your .env file or environment variables.")
     print("  Get a free key at: https://console.groq.com/keys")
     sys.exit(1)
 
