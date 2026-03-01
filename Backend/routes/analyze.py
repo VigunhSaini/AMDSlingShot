@@ -288,7 +288,10 @@ def analyze_pr():
         print(f"[API] Fetching PR #{number} from {owner}/{repo} ...")
         detail = fetch_pr_detail(owner, repo, number)
         if detail is None:
-            return jsonify({"error": f"Could not fetch PR #{number} from {owner}/{repo}. It may not exist or GitHub API rate limit hit."}), 404
+            return jsonify({
+                "error": f"Could not fetch PR #{number} from {owner}/{repo}. It may not exist or GitHub API rate limit hit.",
+                "hint": "Ensure GITHUB_TOKEN is set in your Vercel environment variables for higher rate limits"
+            }), 404
 
         files = fetch_pr_files(owner, repo, number)
         reviews = fetch_pr_reviews(owner, repo, number)
@@ -369,8 +372,15 @@ def analyze_pr():
 
         # ── Step 5: Groq LLM Review ──
         print("[API] Requesting LLM review from Groq ...")
-        user_prompt = build_user_prompt(prediction_data)
-        llm_review = call_groq(SYSTEM_PROMPT, user_prompt)
+        try:
+            user_prompt = build_user_prompt(prediction_data)
+            llm_review = call_groq(SYSTEM_PROMPT, user_prompt)
+        except ValueError as e:
+            # Missing GROQ_API_KEY
+            return jsonify({
+                "error": f"Configuration Error: {str(e)}",
+                "hint": "Set GROQ_API_KEY in your Vercel environment variables"
+            }), 500
 
         # ── Step 6: Build unified response for frontend ──
         print("[API] Building response ...")

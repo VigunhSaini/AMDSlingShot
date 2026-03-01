@@ -203,10 +203,11 @@ def _load_api_key() -> str:
                 if value:
                     return value
 
-    print("[ERROR] GROQ_API_KEY not found in environment variables or .env file.")
-    print("  Add GROQ_API_KEY=gsk_... to your .env file or environment variables.")
-    print("  Get a free key at: https://console.groq.com/keys")
-    sys.exit(1)
+    raise ValueError(
+        "GROQ_API_KEY not found in environment variables or .env file. "
+        "Add GROQ_API_KEY=gsk_... to your .env file or Vercel environment variables. "
+        "Get a free key at: https://console.groq.com/keys"
+    )
 
 
 def call_groq(system_prompt: str, user_prompt: str) -> str:

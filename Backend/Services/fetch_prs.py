@@ -75,9 +75,8 @@ def _load_token() -> str | None:
 
 TOKEN = _load_token()
 if not TOKEN:
-    print("[WARNING] GITHUB_TOKEN not found. Rate limit: 60 req/hr (unusable for 400 PRs).")
-    print("[WARNING] Add GITHUB_TOKEN=<your_pat> to Services/.env and re-run.")
-    raise SystemExit(1)
+    print("[WARNING] GITHUB_TOKEN not found. Rate limit: 60 req/hr.")
+    print("[WARNING] Add GITHUB_TOKEN=<your_pat> to environment variables.")
 
 HEADERS = {
     "Accept": "application/vnd.github+json",
