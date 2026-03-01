@@ -402,7 +402,7 @@ def analyze_pr():
         reviewer_logins = list({
             r.get("user", {}).get("login", "")
             for r in (reviews or [])
-            if r.get("user", {}).get("login")
+            if r is not None and r.get("user", {}).get("login")
         })
         if not reviewer_logins:
             reviewer_logins = ["none"]
