@@ -256,7 +256,7 @@ def health_check():
     """Health check endpoint to verify the API is running."""
     return jsonify({
         "status": "ok",
-        "service": "AMDSlingShot Backend API",
+        "service": "MergePilot Backend API",
         "version": "1.0"
     }), 200
 

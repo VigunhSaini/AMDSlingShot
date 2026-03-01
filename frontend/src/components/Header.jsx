@@ -19,7 +19,7 @@ export default function Header() {
                     <div className="absolute inset-0 rounded-lg bg-neon-cyan/30 blur-md -z-10" />
                 </div>
                 <div>
-                    <span className="text-white font-bold text-base tracking-tight">PR Intelligence</span>
+                    <span className="text-white font-bold text-base tracking-tight">MergePilot</span>
                     <span className="block text-white/30 text-xs font-mono mt-0.5">AI-Powered Merge Analysis</span>
                 </div>
             </div>

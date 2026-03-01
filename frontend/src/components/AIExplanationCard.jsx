@@ -4,35 +4,96 @@ import { cleanAIText } from '../utils/parseAIText';
 
 
 
-// Parse text into sections upfront, then reveal progressively
-function parseSections(text) {
-    if (!text) return [];
-    const sections = [];
-    const lines = text.split('\n');
-    let bodyLines = [];
+// Trim body text to at most N sentences for conciseness
+function trimToSentences(text, max = 2) {
+    // Split on sentence-ending punctuation followed by space + capital
+    const parts = text.split(/(?<=[.!?])\s+(?=[A-Z])/);
+    return parts.slice(0, max).join(' ').trim();
+}
 
-    const flushBody = () => {
-        const joined = bodyLines.join(' ').trim();
-        if (joined) sections.push({ isHeading: false, text: joined });
-        bodyLines = [];
-    };
+// Words that typically START a body sentence (not a heading continuation)
+const BODY_STARTERS = new Set([
+    'I', 'Your', 'You', 'This', 'The', 'It', 'We', 'There',
+    'That', 'My', 'Our', 'They', 'He', 'She', 'One', 'Since',
+    'As', 'While', 'Although', 'However', 'But', 'So', 'By',
+]);
 
-    for (const line of lines) {
-        const headingMatch = line.match(/^\s*#{1,6}\s+(.+)/);
-        if (headingMatch) {
-            flushBody();
-            const h = headingMatch[1].trim();
-            if (h) sections.push({ isHeading: true, text: h });
-        } else {
-            const trimmed = line.trim();
-            if (trimmed === '') {
-                flushBody();
-            } else {
-                bodyLines.push(trimmed);
-            }
+// Core split: given a paragraph like
+//   "Hey Here's Where Your PR Stands Your PR is looking solid, but..."
+// detect the boundary between the heading phrase and the body sentence.
+//
+// Strategy:
+//   1. Markdown heading  →  ## Heading \n body
+//   2. Bold heading      →  **Heading** body
+//   3. Natural heading   →  scan word-by-word until we find a BODY_STARTER
+//      word after at least 4 heading words, where the prev word ends cleanly.
+function splitHeadingFromParagraph(text) {
+    if (!text) return { heading: null, body: text };
+
+    // 1. Markdown heading
+    const mdMatch = text.match(/^#{1,6}\s+(.+)/);
+    if (mdMatch) return { heading: mdMatch[1].trim(), body: '' };
+
+    // 2. Bold-wrapped heading: **Title** rest of text
+    const boldMatch = text.match(/^\*{1,2}([^*]+)\*{1,2}\s*([\s\S]*)/);
+    if (boldMatch) return { heading: boldMatch[1].trim(), body: boldMatch[2].trim() };
+
+    // 3. Natural heading scan
+    const words = text.split(' ');
+    if (words.length < 5) return { heading: null, body: text };
+
+    const maxHeadingWords = Math.min(12, words.length - 1);
+    let splitAt = -1;
+
+    for (let i = 4; i < maxHeadingWords; i++) {   // heading must have ≥ 4 words
+        const prev = words[i - 1];
+        const curr = words[i];
+        if (!curr) continue;
+
+        const prevEndsClean = !/[,\-–—:]$/.test(prev);
+        const prevEndsLower = /[a-z]/.test(prev.slice(-1));
+        const currIsBodyStarter = BODY_STARTERS.has(curr);
+
+        if (prevEndsClean && prevEndsLower && currIsBodyStarter) {
+            splitAt = i;
+            break;
         }
     }
-    flushBody();
+
+    if (splitAt > 0) {
+        const heading = words.slice(0, splitAt).join(' ').replace(/[.!?,;:]+$/, '').trim();
+        const body = words.slice(splitAt).join(' ').trim();
+        return { heading, body };
+    }
+
+    // No natural split found — treat whole paragraph as body
+    return { heading: null, body: text };
+}
+
+
+// Parse cleaned AI text into { isHeading, text } sections
+function parseSections(text) {
+    if (!text) return [];
+
+    // Split into paragraphs (double newlines), collapse single newlines
+    const rawParagraphs = text
+        .split(/\n{2,}/)
+        .map(p => p.replace(/\n/g, ' ').trim())
+        .filter(Boolean);
+
+    const sections = [];
+
+    for (const para of rawParagraphs) {
+        const { heading, body } = splitHeadingFromParagraph(para);
+        if (heading) {
+            sections.push({ isHeading: true, text: heading });
+        }
+        if (body) {
+            const concise = trimToSentences(body, 2);
+            if (concise) sections.push({ isHeading: false, text: concise });
+        }
+    }
+
     return sections;
 }
 
@@ -105,9 +166,12 @@ export default function AIExplanationCard({ explanation }) {
                     <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
                         {sections.slice(0, visibleCount).map((s, idx) =>
                             s.isHeading ? (
-                                <p key={idx} className="text-white font-extrabold text-base mt-4 mb-2 first:mt-0" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.3)' }}>{s.text}</p>
+                                <div key={idx} className="flex items-center gap-2 mt-4 mb-1 first:mt-0">
+                                    <div className="w-0.5 h-4 rounded-full bg-neon-purple flex-shrink-0" />
+                                    <p className="text-neon-purple font-bold text-sm uppercase tracking-wide leading-snug">{s.text}</p>
+                                </div>
                             ) : (
-                                <p key={idx} className="text-white text-sm leading-relaxed mb-3" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.15)' }}>{s.text}</p>
+                                <p key={idx} className="text-white/70 text-sm leading-relaxed mb-3 pl-2.5">{s.text}</p>
                             )
                         )}
                         {isTyping && (

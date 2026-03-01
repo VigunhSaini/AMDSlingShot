@@ -1,4 +1,4 @@
-# Deployment Guide for AMDSlingShot
+# Deployment Guide for MergePilot
 
 ## Problem Fixed
 The frontend was unable to communicate with the backend because it was using relative URLs (`/api/analyze`) which worked in development but not in production on Vercel.
@@ -60,9 +60,9 @@ The frontend was unable to communicate with the backend because it was using rel
 
 ## Testing
 1. First, test the backend health check:
-   - Visit: https://amdslingshot-backend-pwczc0i0f-mergeagent63-8385s-projects.vercel.app/
-   - You should see: `{"status": "ok", "service": "AMDSlingShot Backend API", "version": "1.0"}`
-2. Visit your frontend URL: https://amdslingshot-frontend.vercel.app/
+   - Visit: https://mergepilot-backend.vercel.app/
+   - You should see: `{"status": "ok", "service": "MergePilot Backend API", "version": "1.0"}`
+2. Visit your frontend URL: https://mergepilot-frontend.vercel.app/
 3. Try analyzing a PR
 4. The frontend should now successfully call the backend
 
@@ -87,8 +87,8 @@ The frontend was unable to communicate with the backend because it was using rel
 - **Configured:** Backend allows requests from Vercel deployments and localhost
 - Allowed origins:
   - Any Vercel deployment URL ending with `.vercel.app`
-    - Production: `https://amdslingshot-frontend.vercel.app`
-    - Preview: `https://amdslingshot-frontend-git-*.vercel.app`
+    - Production: `https://mergepilot-frontend.vercel.app`
+    - Preview: `https://mergepilot-frontend-git-*.vercel.app`
     - All other Vercel URLs: `https://*-<username>-projects.vercel.app`
   - Local development: `http://localhost:*`
 - This covers all Vercel deployment variations while maintaining security

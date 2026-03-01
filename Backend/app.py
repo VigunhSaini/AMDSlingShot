@@ -1,5 +1,5 @@
 """
-app.py — Flask entry point for AMDSlingShot Backend
+app.py — Flask entry point for MergePilot Backend
 
 Registers the analyze blueprint and enables CORS.
 Run: python app.py
@@ -33,7 +33,7 @@ app = create_app()
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  AMDSlingShot Backend — Flask API")
+    print("  MergePilot Backend — Flask API")
     print("  Running on http://localhost:5000")
     print("=" * 50)
     app.run(host="0.0.0.0", port=5000, debug=True)

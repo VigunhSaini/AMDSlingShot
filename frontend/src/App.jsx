@@ -104,7 +104,7 @@ export default function App() {
               </main>
               <footer className="py-4 text-center">
                 <p className="text-white/15 text-xs font-mono">
-                  PR Intelligence · Powered by behavioral ML models
+                  MergePilot · Powered by behavioral ML models
                 </p>
               </footer>
             </div>
@@ -131,7 +131,7 @@ export default function App() {
             </main>
             <footer className="py-4 text-center">
               <p className="text-white/15 text-xs font-mono">
-                PR Intelligence · Powered by behavioral ML models
+                MergePilot · Powered by behavioral ML models
               </p>
             </footer>
           </motion.div>
