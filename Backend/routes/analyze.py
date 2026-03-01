@@ -247,12 +247,27 @@ def _build_suggestions(risk_factors: list) -> list:
 
 
 # ─────────────────────────────────────────────
-# Route
+# Routes
 # ─────────────────────────────────────────────
 
-@analyze_bp.route("/api/analyze", methods=["POST"])
+@analyze_bp.route("/", methods=["GET"])
+@analyze_bp.route("/api", methods=["GET"])
+def health_check():
+    """Health check endpoint to verify the API is running."""
+    return jsonify({
+        "status": "ok",
+        "service": "AMDSlingShot Backend API",
+        "version": "1.0"
+    }), 200
+
+
+@analyze_bp.route("/api/analyze", methods=["POST", "OPTIONS"])
 def analyze_pr():
     """Full analysis pipeline: ML prediction → Groq LLM review → unified JSON."""
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
     body = request.get_json(silent=True) or {}
     pr_url = body.get("pr_url", "").strip()
 

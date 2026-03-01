@@ -59,9 +59,12 @@ The frontend was unable to communicate with the backend because it was using rel
 3. Vercel will automatically redeploy the frontend
 
 ## Testing
-1. Visit your frontend URL: https://amdslingshot-frontend.vercel.app/
-2. Try analyzing a PR
-3. The frontend should now successfully call the backend
+1. First, test the backend health check:
+   - Visit: https://amdslingshot-backend-pwczc0i0f-mergeagent63-8385s-projects.vercel.app/
+   - You should see: `{"status": "ok", "service": "AMDSlingShot Backend API", "version": "1.0"}`
+2. Visit your frontend URL: https://amdslingshot-frontend.vercel.app/
+3. Try analyzing a PR
+4. The frontend should now successfully call the backend
 
 ## Environment Variables
 
@@ -74,10 +77,20 @@ The frontend was unable to communicate with the backend because it was using rel
 
 ## Troubleshooting
 
-### 404 Error
+### Backend Not Responding / 404 Error
 - Make sure the backend URL in `.env.production` is correct
+- Test the health check endpoint: `https://your-backend.vercel.app/`
 - Verify the backend is deployed and accessible
 - Check Vercel logs for both frontend and backend
+
+### CORS Error (Access-Control-Allow-Origin)
+- Backend has CORS configured to allow:
+  - `https://amdslingshot-frontend.vercel.app`
+  - `https://*.vercel.app` (all Vercel preview deployments)
+  - `http://localhost:5173` (local development)
+- If you change the frontend domain, update `app.py` CORS origins list
+- Redeploy backend after CORS changes
+- Clear browser cache and try again
 
 ### CORS Error
 - Backend already has CORS enabled via `flask-cors`

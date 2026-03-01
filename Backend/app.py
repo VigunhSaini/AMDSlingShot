@@ -12,7 +12,23 @@ from routes.analyze import analyze_bp
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+    
+    # Configure CORS to allow frontend domains
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:5173",  # Vite dev server
+                "http://localhost:5174",
+                "http://localhost:3000",
+                "https://amdslingshot-frontend.vercel.app",
+                "https://*.vercel.app"  # Allow all Vercel preview deployments
+            ],
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type"],
+            "supports_credentials": False
+        }
+    })
+    
     app.register_blueprint(analyze_bp)
     return app
 
