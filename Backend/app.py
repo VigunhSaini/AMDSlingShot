@@ -13,15 +13,11 @@ from routes.analyze import analyze_bp
 def create_app():
     app = Flask(__name__)
     
-    # Configure CORS to allow Vercel deployments and localhost
-    # Using regex pattern to match all .vercel.app domains
+    # Configure CORS to allow all origins
+    # This is safe for a public API that analyzes GitHub PRs
     CORS(app, resources={
-        r"/*": {
-            "origins": [
-                r"https://.*\.vercel\.app",  # All Vercel deployments
-                r"http://localhost:\d+",      # Localhost with any port
-                r"http://127\.0\.0\.1:\d+"    # 127.0.0.1 with any port
-            ],
+        r"/api/*": {
+            "origins": "*",
             "methods": ["GET", "POST", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "expose_headers": ["Content-Type"],
