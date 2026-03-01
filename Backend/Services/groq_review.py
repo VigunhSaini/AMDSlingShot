@@ -110,17 +110,28 @@ def build_user_prompt(data: dict) -> str:
     """Build a detailed user prompt from prediction data."""
     pred = data["prediction"]
     top_feats = data.get("top_features", [])
+    top_code = data.get("top_code_features", [])
+    top_meta = data.get("top_metadata_features", [])
     patch = data.get("patch_analysis", {})
     kw = data.get("keyword_signals", {})
 
-    # Format top features
-    feat_lines = []
-    for i, f in enumerate(top_feats, 1):
-        feat_lines.append(f"  {i}. {f['feature']} = {f['value']} (importance: {f['importance']:.1%})")
+    # Format top code features
+    code_lines = []
+    for i, f in enumerate(top_code[:5] if top_code else top_feats[:3], 1):
+        code_lines.append(f"  {i}. {f['feature']} = {f['value']} (importance: {f['importance']:.1%})")
+
+    # Format top metadata features
+    meta_lines = []
+    for i, f in enumerate(top_meta[:5] if top_meta else top_feats[3:], 1):
+        meta_lines.append(f"  {i}. {f['feature']} = {f['value']} (importance: {f['importance']:.1%})")
 
     # Format keyword signals
     active_kw = [k.replace("contains_", "") for k, v in kw.items() if v == 1]
     inactive_kw = [k.replace("contains_", "") for k, v in kw.items() if v == 0]
+
+    # Get dual-model scores
+    code_score = pred.get('code_score', pred.get('merge_probability', 0))
+    meta_score = pred.get('metadata_score', pred.get('merge_probability', 0))
 
     prompt = f"""Here are your notes from reviewing this GitHub Pull Request:
 
@@ -151,13 +162,18 @@ KEYWORD RISK SIGNALS:
 - Active risk keywords: {', '.join(active_kw) if active_kw else 'None'}
 - Not triggered: {', '.join(inactive_kw) if inactive_kw else 'None'}
 
-YOUR ASSESSMENT:
-- Estimated Merge Chance: {pred.get('merge_probability', 0):.1%}
+YOUR DUAL-ASSESSMENT:
+- Code Quality Score: {code_score:.1%} (analyzing code structure, complexity, tests)
+- PR Hygiene Score: {meta_score:.1%} (analyzing description, keywords, engagement)
+- Combined Merge Chance: {pred.get('merge_probability', 0):.1%}
 - Overall Take: {pred.get('verdict', 'N/A')}
 - Confidence in Assessment: {pred.get('confidence', 'N/A')}
 
-KEY FACTORS YOU NOTICED (most impactful on merge outcome):
-{chr(10).join(feat_lines)}
+KEY CODE FACTORS (what matters most for code quality):
+{chr(10).join(code_lines)}
+
+KEY METADATA FACTORS (what matters most for PR presentation):
+{chr(10).join(meta_lines)}
 
 Now share your review with the contributor, following the required structure."""
 

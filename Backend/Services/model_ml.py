@@ -1,19 +1,33 @@
 """
-model_ml.py — PR Merge Probability Predictor
+model_ml.py - PR Merge Probability Predictor (Dual-Model Architecture)
 
-Trains a RandomForestClassifier on PR metadata + diff analysis features
-to predict whether a PR will be merged. Provides detailed evaluation
-reports and inference capabilities.
+Trains TWO separate RandomForestClassifiers:
+    1. CODE MODEL (65% weight) - Analyzes code quality, complexity, and structure
+    2. METADATA MODEL (35% weight) - Analyzes PR hygiene, engagement, and communication
 
-Features cover 7 analysis dimensions:
-    1. Lines of code        – total_changes, net_line_change
-    2. Test coverage        – test_files_changed, test_change_ratio
-    3. Complexity proxies   – avg_changes_per_file, max_file_changes
-    4. Diff structural      – control/function/class counts, structural_change_score
-    5. Keyword risk signals – 6 binary flags from title + body
-    6. Engagement           – review_engagement
-    7. Metadata             – description_length, title_length, commits, changed_files
+The final prediction combines both models using weighted average.
+This architecture prevents metadata (like description length) from overshadowing
+actual code analysis signals.
+
+Code Model Features:
+    - Lines of code: total_changes, net_line_change
+    - Test coverage: test_files_changed, test_change_ratio
+    - Complexity: avg_changes_per_file, max_file_changes
+    - Diff structural: control/function/class counts, structural_change_score
+    - Code metrics: commits, changed_files, todo_count
+
+Metadata Model Features:
+    - PR description: description_length, title_length
+    - Keyword signals: refactor, rewrite, breaking, deprecated, fix, bug
+    - Engagement: review_engagement (comments + review comments)
 """
+
+import sys
+import io
+
+# Fix Windows console encoding for Unicode characters
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 import numpy as np
 import pandas as pd
@@ -77,7 +91,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # Reviewer engagement (derived)
     df["review_engagement"] = df["review_comments"].fillna(0) + df["comments"].fillna(0)
 
-    # Keyword risk signals — compute from title + body if not in CSV
+    # Keyword risk signals - compute from title + body if not in CSV
     for kw in RISK_KEYWORDS:
         col = f"contains_{kw}"
         if col not in df.columns:
@@ -97,7 +111,12 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-FEATURE_COLS = [
+# ─────────────────────────────────────────────
+# DUAL-MODEL FEATURE SETS
+# ─────────────────────────────────────────────
+
+# CODE MODEL: Focuses on actual code changes and structure (65% weight)
+CODE_FEATURES = [
     # Lines of code
     "total_changes",
     "net_line_change",
@@ -113,6 +132,16 @@ FEATURE_COLS = [
     "class_definitions_count",
     "todo_count",
     "structural_change_score",
+    # Code-related metadata
+    "commits",
+    "changed_files",
+]
+
+# METADATA MODEL: Focuses on PR hygiene and communication (35% weight)
+METADATA_FEATURES = [
+    # PR description quality
+    "description_length",
+    "title_length",
     # Keyword risk signals
     "contains_refactor",
     "contains_rewrite",
@@ -122,21 +151,23 @@ FEATURE_COLS = [
     "contains_bug",
     # Engagement
     "review_engagement",
-    # Metadata
-    "commits",
-    "changed_files",
-    "description_length",
-    "title_length",
 ]
+
+# Combined for backward compatibility
+FEATURE_COLS = CODE_FEATURES + METADATA_FEATURES
+
+# Model combination weights
+CODE_WEIGHT = 0.65
+METADATA_WEIGHT = 0.35
 
 
 # ─────────────────────────────────────────────
 # 3. DATA PREPROCESSING
 # ─────────────────────────────────────────────
 
-def preprocess(df: pd.DataFrame):
-    """Split into train/test, return X/y splits and feature names."""
-    X = df[FEATURE_COLS].fillna(0).astype(float)
+def preprocess(df: pd.DataFrame, feature_cols: list[str]):
+    """Split into train/test for a given feature set, return X/y splits."""
+    X = df[feature_cols].fillna(0).astype(float)
     y = df["merged"].astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -149,11 +180,46 @@ def preprocess(df: pd.DataFrame):
     return X_train, X_test, y_train, y_test, list(X.columns)
 
 
+def preprocess_dual(df: pd.DataFrame):
+    """
+    Preprocess for dual-model architecture.
+    Returns separate train/test splits for CODE and METADATA models.
+    """
+    y = df["merged"].astype(int)
+    
+    # Use same train/test indices for both models (important for fair comparison)
+    from sklearn.model_selection import train_test_split
+    indices = np.arange(len(df))
+    train_idx, test_idx = train_test_split(
+        indices, test_size=0.25, random_state=42, stratify=y
+    )
+    
+    # Code features
+    X_code = df[CODE_FEATURES].fillna(0).astype(float)
+    X_code_train, X_code_test = X_code.iloc[train_idx], X_code.iloc[test_idx]
+    
+    # Metadata features
+    X_meta = df[METADATA_FEATURES].fillna(0).astype(float)
+    X_meta_train, X_meta_test = X_meta.iloc[train_idx], X_meta.iloc[test_idx]
+    
+    y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+    
+    print(f"[INFO] Train size: {len(train_idx)} | Test size: {len(test_idx)}")
+    print(f"[INFO] Code features: {len(CODE_FEATURES)} | Metadata features: {len(METADATA_FEATURES)}")
+    print(f"[INFO] Train merge rate: {y_train.mean():.1%} | Test merge rate: {y_test.mean():.1%}")
+    
+    return {
+        "code": (X_code_train, X_code_test),
+        "metadata": (X_meta_train, X_meta_test),
+        "y": (y_train, y_test),
+    }
+
+
 # ─────────────────────────────────────────────
 # 4. MODEL TRAINING
 # ─────────────────────────────────────────────
 
-def train_model(X_train: pd.DataFrame, y_train: pd.Series) -> RandomForestClassifier:
+def train_model(X_train: pd.DataFrame, y_train: pd.Series, model_name: str = "model") -> RandomForestClassifier:
     """
     Train a RandomForestClassifier with moderate regularisation.
     More data (800+ PRs) is the best way to reduce the train-test gap.
@@ -169,8 +235,32 @@ def train_model(X_train: pd.DataFrame, y_train: pd.Series) -> RandomForestClassi
         n_jobs=-1,
     )
     model.fit(X_train, y_train)
-    print("[INFO] Model training complete.")
+    print(f"[INFO] {model_name} training complete.")
     return model
+
+
+def train_dual_models(data: dict) -> tuple[RandomForestClassifier, RandomForestClassifier]:
+    """
+    Train both CODE and METADATA models.
+    
+    Returns:
+        (code_model, metadata_model)
+    """
+    X_code_train, _ = data["code"]
+    X_meta_train, _ = data["metadata"]
+    y_train, _ = data["y"]
+    
+    print("\n" + "─" * 50)
+    print("💻  TRAINING CODE MODEL (65% weight)")
+    print("─" * 50)
+    code_model = train_model(X_code_train, y_train, "Code Model")
+    
+    print("\n" + "─" * 50)
+    print("📝  TRAINING METADATA MODEL (35% weight)")
+    print("─" * 50)
+    meta_model = train_model(X_meta_train, y_train, "Metadata Model")
+    
+    return code_model, meta_model
 
 
 # ─────────────────────────────────────────────
@@ -253,12 +343,12 @@ def evaluate_model(
     print(f"  │  Test  Accuracy : {test_acc:.2%}                            │")
     print(f"  │  Gap            : {gap:.2%}                             │")
     if gap > 0.10:
-        print("  │  ⚠  OVERFITTING — model memorised training data.   │")
+        print("  |  OVERFITTING - model memorised training data.     |")
         print("  │     It performs much worse on unseen PRs.           │")
     elif gap > 0.05:
-        print("  │  ⚡ MILD OVERFITTING — mostly fine, minor gap.      │")
+        print("  |  MILD OVERFITTING - mostly fine, minor gap.       |")
     else:
-        print("  │  ✅ HEALTHY — model generalises well to new PRs.    │")
+        print("  |  HEALTHY - model generalises well to new PRs.     |")
     print(  "  └─────────────────────────────────────────────────────┘")
     print(f"\n  💡 What this means: Out of every 100 unseen PRs, the")
     print(f"     model correctly predicts ~{test_acc*100:.0f} of them.")
@@ -313,17 +403,17 @@ def evaluate_model(
 
 
 # ─────────────────────────────────────────────
-# 6. INFERENCE
+# 6. INFERENCE (DUAL-MODEL)
 # ─────────────────────────────────────────────
 
 # Module-level globals populated by `build_pipeline()`
-_model: RandomForestClassifier | None = None
-_feature_names: list[str] = []
+_code_model: RandomForestClassifier | None = None
+_meta_model: RandomForestClassifier | None = None
 
 
 def predict_pr_merge_probability(pr_dict: dict) -> dict:
     """
-    Predict the merge probability for a single PR.
+    Predict the merge probability for a single PR using DUAL-MODEL architecture.
 
     Args:
         pr_dict: Dictionary containing PR fields:
@@ -337,13 +427,16 @@ def predict_pr_merge_probability(pr_dict: dict) -> dict:
 
     Returns:
         {
-            "merge_probability": float,
+            "merge_probability": float,      # Combined weighted score
+            "code_score": float,             # Code model score (65% weight)
+            "metadata_score": float,         # Metadata model score (35% weight)
             "prediction": str,
-            "top_features": list[dict],
+            "top_code_features": list[dict],
+            "top_metadata_features": list[dict],
         }
     """
-    if _model is None:
-        raise RuntimeError("Model not trained. Call build_pipeline() first.")
+    if _code_model is None or _meta_model is None:
+        raise RuntimeError("Models not trained. Call build_pipeline() first.")
 
     # Build features from the incoming dict
     additions       = pr_dict.get("additions", 0) or 0
@@ -361,95 +454,172 @@ def predict_pr_merge_probability(pr_dict: dict) -> dict:
     funcs  = pr_dict.get("function_definitions_count", 0) or 0
     cls    = pr_dict.get("class_definitions_count", 0) or 0
 
-    features = {
-        # Lines of code
+    # CODE FEATURES
+    code_features = {
         "total_changes":                total_changes,
         "net_line_change":              additions - deletions,
-        # Test coverage
         "test_files_changed":           pr_dict.get("test_files_changed", 0) or 0,
         "test_change_ratio":            pr_dict.get("test_change_ratio", 0.0) or 0.0,
-        # Complexity proxies
         "avg_changes_per_file":         round(total_changes / max(changed_files, 1), 2),
         "max_file_changes":             pr_dict.get("max_file_changes", 0) or 0,
-        # Diff structural
         "control_statements_count":     ctrl,
         "function_definitions_count":   funcs,
         "class_definitions_count":      cls,
         "todo_count":                   pr_dict.get("todo_count", 0) or 0,
         "structural_change_score":      ctrl + (funcs * 2) + (cls * 3),
-        # Keyword risk signals
+        "commits":                      pr_dict.get("commits", 0) or 0,
+        "changed_files":                changed_files,
+    }
+
+    # METADATA FEATURES
+    metadata_features = {
+        "description_length":           len(body),
+        "title_length":                 len(title),
         "contains_refactor":            int("refactor" in text_lower),
         "contains_rewrite":             int("rewrite" in text_lower),
         "contains_breaking":            int("breaking" in text_lower),
         "contains_deprecated":          int("deprecated" in text_lower),
         "contains_fix":                 int("fix" in text_lower),
         "contains_bug":                 int("bug" in text_lower),
-        # Engagement
         "review_engagement":            (pr_dict.get("review_comments", 0) or 0)
                                         + (pr_dict.get("comments", 0) or 0),
-        # Metadata
-        "commits":                      pr_dict.get("commits", 0) or 0,
-        "changed_files":                changed_files,
-        "description_length":           len(body),
-        "title_length":                 len(title),
     }
 
-    X_input = pd.DataFrame([features])[_feature_names]
-    proba   = _model.predict_proba(X_input)[0][1]
+    # Get predictions from both models
+    X_code = pd.DataFrame([code_features])[CODE_FEATURES]
+    X_meta = pd.DataFrame([metadata_features])[METADATA_FEATURES]
+    
+    code_proba = _code_model.predict_proba(X_code)[0][1]
+    meta_proba = _meta_model.predict_proba(X_meta)[0][1]
+    
+    # === FRESH PR ADJUSTMENT ===
+    # New PRs with no engagement shouldn't be penalized as harshly
+    # They haven't had time to accumulate comments/reviews yet
+    review_engagement = metadata_features["review_engagement"]
+    is_fresh_pr = review_engagement == 0
+    
+    if is_fresh_pr:
+        # Boost metadata score for fresh PRs (no engagement yet)
+        # The model was trained on PRs that had time to get reviews
+        meta_proba = min(1.0, meta_proba + 0.20)
+    
+    # Apply a minimum floor to prevent overly pessimistic predictions
+    # A well-structured PR with good code shouldn't score below 40%
+    MIN_SCORE_FLOOR = 0.40
+    code_proba = max(MIN_SCORE_FLOOR, code_proba)
+    meta_proba = max(MIN_SCORE_FLOOR, meta_proba)
+    
+    # Weighted combination: 65% code + 35% metadata
+    combined_proba = (CODE_WEIGHT * code_proba) + (METADATA_WEIGHT * meta_proba)
+    
+    # Apply sigmoid smoothing to avoid extreme predictions
+    # This pulls extreme values (0.1 or 0.95) toward the middle
+    def smooth_probability(p, strength=0.3):
+        """Smooth extreme probabilities toward 0.5"""
+        return p * (1 - strength) + 0.5 * strength
+    
+    combined_proba = smooth_probability(combined_proba, strength=0.15)
 
-    # Top contributing features
-    importances = dict(zip(_feature_names, _model.feature_importances_))
-    top_features = sorted(
-        [{"feature": k, "importance": round(importances[k], 4), "value": round(v, 2)}
-         for k, v in features.items()],
+    # Top contributing features from CODE model
+    code_importances = dict(zip(CODE_FEATURES, _code_model.feature_importances_))
+    top_code_features = sorted(
+        [{"feature": k, "importance": round(code_importances[k], 4), "value": round(v, 2)}
+         for k, v in code_features.items()],
         key=lambda x: x["importance"],
         reverse=True,
-    )[:5]  # top 5
+    )[:5]
+
+    # Top contributing features from METADATA model
+    meta_importances = dict(zip(METADATA_FEATURES, _meta_model.feature_importances_))
+    top_metadata_features = sorted(
+        [{"feature": k, "importance": round(meta_importances[k], 4), "value": round(v, 2)}
+         for k, v in metadata_features.items()],
+        key=lambda x: x["importance"],
+        reverse=True,
+    )[:5]
 
     return {
-        "merge_probability": round(float(proba), 4),
-        "prediction": "Likely Merged" if proba >= 0.5 else "Likely Not Merged",
-        "top_features": top_features,
+        "merge_probability": round(float(combined_proba), 4),
+        "code_score": round(float(code_proba), 4),
+        "metadata_score": round(float(meta_proba), 4),
+        "prediction": "Likely Merged" if combined_proba >= 0.5 else "Likely Not Merged",
+        "is_fresh_pr": is_fresh_pr,  # Flag for new PRs with no engagement
+        "top_code_features": top_code_features,
+        "top_metadata_features": top_metadata_features,
+        # For backward compatibility, combine top features
+        "top_features": top_code_features[:3] + top_metadata_features[:2],
     }
 
 
 # ─────────────────────────────────────────────
-# 7. END-TO-END PIPELINE
+# 7. END-TO-END PIPELINE (DUAL-MODEL)
 # ─────────────────────────────────────────────
 
 def build_pipeline(
     csv_path: str = "pr_data.csv",
-) -> RandomForestClassifier:
+) -> tuple[RandomForestClassifier, RandomForestClassifier]:
     """
-    End-to-end pipeline: load CSV → engineer → preprocess → train → evaluate.
+    End-to-end DUAL-MODEL pipeline:
+        load CSV → engineer → preprocess → train TWO models → evaluate
 
-    Reads pre-collected PR data from the CSV produced by fetch_prs.py.
+    Architecture:
+        - CODE MODEL (65% weight): Analyzes code complexity, structure, commits
+        - METADATA MODEL (35% weight): Analyzes PR description, keywords, engagement
 
     Args:
         csv_path: filename of the CSV (expected in the same directory as this script)
 
     Returns:
-        Trained RandomForestClassifier (also stored in module globals for inference)
+        Tuple of (code_model, metadata_model) - also stored in module globals
     """
-    global _model, _feature_names
+    global _code_model, _meta_model
 
     df = load_data(csv_path)
     df = engineer_features(df)
-    X_train, X_test, y_train, y_test, feature_names = preprocess(df)
-    model = train_model(X_train, y_train)
+    
+    # Preprocess for dual models
+    data = preprocess_dual(df)
+    
+    # Train both models
+    code_model, meta_model = train_dual_models(data)
+    
+    # Store in globals for inference
+    _code_model = code_model
+    _meta_model = meta_model
+    
+    # Evaluate both models
+    X_code_train, X_code_test = data["code"]
+    X_meta_train, X_meta_test = data["metadata"]
+    y_train, y_test = data["y"]
+    
+    print("\n" + "\u2550" * 62)
+    print("  💻  CODE MODEL EVALUATION")
+    print("\u2550" * 62)
+    evaluate_model(code_model, X_code_train, X_code_test, y_train, y_test, CODE_FEATURES)
+    
+    print("\n" + "\u2550" * 62)
+    print("  📝  METADATA MODEL EVALUATION")
+    print("\u2550" * 62)
+    evaluate_model(meta_model, X_meta_train, X_meta_test, y_train, y_test, METADATA_FEATURES)
+    
+    # Print weight summary
+    print("\n" + "\u2550" * 62)
+    print("  ⚖️   DUAL-MODEL WEIGHT SUMMARY")
+    print("\u2550" * 62)
+    print(f"  ┌─ COMBINATION WEIGHTS ───────────────────────────────┐")
+    print(f"  │  Code Model     : {CODE_WEIGHT:.0%}  (code analysis priority)     │")
+    print(f"  │  Metadata Model : {METADATA_WEIGHT:.0%}  (PR hygiene)                  │")
+    print(f"  └─────────────────────────────────────────────────────┘")
+    print(f"\n  💡 Final Score = ({CODE_WEIGHT:.0%} × Code Score) + ({METADATA_WEIGHT:.0%} × Metadata Score)")
+    print(f"     This ensures code quality has more influence than description length.")
 
-    _model = model
-    _feature_names = feature_names
-
-    evaluate_model(model, X_train, X_test, y_train, y_test, feature_names)
-
-    return model
+    return code_model, meta_model
 
 
 
 
 # ─────────────────────────────────────────────
-# MAIN — Demo Run
+# MAIN - Demo Run
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -479,6 +649,8 @@ if __name__ == "__main__":
 
     result = predict_pr_merge_probability(sample_pr)
     prob = result["merge_probability"]
+    code_score = result["code_score"]
+    meta_score = result["metadata_score"]
 
     # Confidence level label
     if prob >= 0.85:
@@ -492,7 +664,7 @@ if __name__ == "__main__":
 
     W = 62
     print("\n" + "═" * W)
-    print("  🔮  INFERENCE DEMO — Sample PR Analysis")
+    print("  INFERENCE DEMO - Sample PR Analysis (DUAL-MODEL)")
     print("═" * W)
 
     print("\n  ┌─ INPUT PR ────────────────────────────────────────┐")
@@ -503,20 +675,39 @@ if __name__ == "__main__":
     print(f"  │  Comments       : {sample_pr['comments']} general + {sample_pr['review_comments']} review            │")
     print(  "  └─────────────────────────────────────────────────────┘")
 
-    # Probability bar
-    filled = int(prob * 30)
-    bar = "█" * filled + "░" * (30 - filled)
+    # Score bars
+    code_filled = int(code_score * 20)
+    meta_filled = int(meta_score * 20)
+    combined_filled = int(prob * 20)
+    
+    code_bar = "█" * code_filled + "░" * (20 - code_filled)
+    meta_bar = "█" * meta_filled + "░" * (20 - meta_filled)
+    combined_bar = "█" * combined_filled + "░" * (20 - combined_filled)
+
+    print(f"\n  ┌─ DUAL-MODEL SCORES ───────────────────────────────┐")
+    print(f"  │  💻 Code Score     : {code_score:.1%}  [{code_bar}]   │")
+    print(f"  │  📝 Metadata Score : {meta_score:.1%}  [{meta_bar}]   │")
+    print(f"  │  ─────────────────────────────────────────────────  │")
+    print(f"  │  ⚖️  Combined       : {prob:.1%}  [{combined_bar}]   │")
+    print(f"  │     ({CODE_WEIGHT:.0%} × Code) + ({METADATA_WEIGHT:.0%} × Metadata)                   │")
+    print(  "  └─────────────────────────────────────────────────────┘")
 
     print(f"\n  ┌─ PREDICTION ──────────────────────────────────────┐")
-    print(f"  │  Merge Probability : {prob:.1%}{'':>24}│")
-    print(f"  │  [{bar}]         │")
     print(f"  │  Verdict    : {result['prediction']:<36}│")
     print(f"  │  Confidence : {confidence:<36}│")
     print(  "  └─────────────────────────────────────────────────────┘")
 
-    # Top features
-    print(f"\n  ┌─ TOP FACTORS INFLUENCING THIS PREDICTION ─────────┐")
-    for feat in result["top_features"]:
+    # Top CODE features
+    print(f"\n  ┌─ TOP CODE FACTORS (65% weight) ──────────────────┐")
+    for feat in result["top_code_features"][:3]:
+        desc = FEATURE_DESCRIPTIONS.get(feat["feature"], feat["feature"])
+        print(f"  │  {desc}")
+        print(f"  │     Value: {feat['value']:<10} Importance: {feat['importance']:.1%}")
+    print(  "  └─────────────────────────────────────────────────────┘")
+
+    # Top METADATA features
+    print(f"\n  ┌─ TOP METADATA FACTORS (35% weight) ───────────────┐")
+    for feat in result["top_metadata_features"][:3]:
         desc = FEATURE_DESCRIPTIONS.get(feat["feature"], feat["feature"])
         print(f"  │  {desc}")
         print(f"  │     Value: {feat['value']:<10} Importance: {feat['importance']:.1%}")
@@ -526,15 +717,20 @@ if __name__ == "__main__":
     if prob >= 0.65:
         print("\n  💡 Interpretation:")
         print("     This PR has strong signals for being merged.")
-        print("     A well-described PR with moderate changes tends to")
-        print("     get reviewed and merged faster.")
+        print(f"     Code quality ({code_score:.0%}) and metadata ({meta_score:.0%}) both contribute.")
     elif prob >= 0.45:
         print("\n  💡 Interpretation:")
-        print("     This PR is on the fence. Consider adding more")
-        print("     description or breaking it into smaller changes.")
+        print("     This PR is on the fence.")
+        if code_score < meta_score:
+            print("     Consider improving code structure or breaking into smaller changes.")
+        else:
+            print("     Consider improving description or getting more review engagement.")
     else:
         print("\n  💡 Interpretation:")
-        print("     This PR has weak merge signals. It may need a better")
-        print("     description, fewer changes, or more review engagement.")
+        print("     This PR has weak merge signals.")
+        if code_score < meta_score:
+            print("     Focus on: code complexity, test coverage, and structural changes.")
+        else:
+            print("     Focus on: better description, keywords, and review engagement.")
 
     print("\n" + "═" * W)

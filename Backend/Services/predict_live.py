@@ -185,23 +185,44 @@ def main():
 
     lines.append("")
     lines.append("=" * W)
-    lines.append("  MODEL PREDICTION")
+    lines.append("  DUAL-MODEL PREDICTION")
     lines.append("=" * W)
 
-    # Probability bar
-    filled = int(prob * 30)
-    bar = "#" * filled + "." * (30 - filled)
+    # Get dual-model scores
+    code_score = result.get("code_score", prob)
+    meta_score = result.get("metadata_score", prob)
+
+    # Probability bars
+    code_filled = int(code_score * 30)
+    meta_filled = int(meta_score * 30)
+    combined_filled = int(prob * 30)
+    
+    code_bar = "#" * code_filled + "." * (30 - code_filled)
+    meta_bar = "#" * meta_filled + "." * (30 - meta_filled)
+    combined_bar = "#" * combined_filled + "." * (30 - combined_filled)
 
     lines.append(f"")
-    lines.append(f"  Merge Probability : {prob:.1%}")
-    lines.append(f"  [{bar}]")
-    lines.append(f"  Verdict           : {result['prediction']}")
-    lines.append(f"  Confidence        : {confidence}")
+    lines.append(f"  Code Score (65%)     : {code_score:.1%}  [{code_bar}]")
+    lines.append(f"  Metadata Score (35%) : {meta_score:.1%}  [{meta_bar}]")
+    lines.append(f"  " + "-" * 50)
+    lines.append(f"  Combined Score       : {prob:.1%}  [{combined_bar}]")
+    lines.append(f"  Verdict              : {result['prediction']}")
+    lines.append(f"  Confidence           : {confidence}")
 
     lines.append("")
-    lines.append("  TOP CONTRIBUTING FACTORS")
+    lines.append("  TOP CODE FACTORS (65% weight)")
     lines.append("  " + "-" * 50)
-    for i, feat in enumerate(result["top_features"], 1):
+    top_code = result.get("top_code_features", result["top_features"][:3])
+    for i, feat in enumerate(top_code[:3], 1):
+        desc = FEATURE_DESCRIPTIONS.get(feat["feature"], feat["feature"])
+        lines.append(f"  {i}. {desc}")
+        lines.append(f"     Value: {feat['value']:<10} Importance: {feat['importance']:.1%}")
+
+    lines.append("")
+    lines.append("  TOP METADATA FACTORS (35% weight)")
+    lines.append("  " + "-" * 50)
+    top_meta = result.get("top_metadata_features", result["top_features"][3:])
+    for i, feat in enumerate(top_meta[:3], 1):
         desc = FEATURE_DESCRIPTIONS.get(feat["feature"], feat["feature"])
         lines.append(f"  {i}. {desc}")
         lines.append(f"     Value: {feat['value']:<10} Importance: {feat['importance']:.1%}")
@@ -239,11 +260,15 @@ def main():
         "structural_change_score": score,
         "prediction": {
             "merge_probability": prob,
+            "code_score":        result.get("code_score", prob),
+            "metadata_score":    result.get("metadata_score", prob),
             "verdict":           result["prediction"],
             "confidence":        confidence,
             "correct":           correct,
         },
-        "top_features": result["top_features"],
+        "top_features":          result["top_features"],
+        "top_code_features":     result.get("top_code_features", []),
+        "top_metadata_features": result.get("top_metadata_features", []),
         "timestamp":    datetime.now().isoformat(),
     }
 
