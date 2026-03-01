@@ -4,20 +4,33 @@ import AnimatedBackground from './components/AnimatedBackground';
 import Header from './components/Header';
 import PRInputForm from './components/PRInputForm';
 import AnalysisDashboard from './components/AnalysisDashboard';
+import { analyzePR } from './services/api';
 
 // appState machine: idle → scanning → transitioning → dashboard
 export default function App() {
-  const [appState, setAppState] = useState('idle'); // 'idle' | 'scanning' | 'transitioning' | 'dashboard'
+  const [appState, setAppState] = useState('idle'); // 'idle' | 'scanning' | 'transitioning' | 'dashboard' | 'error'
   const [analyzedUrl, setAnalyzedUrl] = useState(null);
+  const [analysisData, setAnalysisData] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
 
+  // Called by PRInputForm when the form is submitted
   const handleScanStart = useCallback(() => {
+    setAnalysisError(null);
     setAppState('scanning');
   }, []);
 
-  // Called by PRInputForm after scan delay completes
-  const handleScanComplete = useCallback((url) => {
-    setAnalyzedUrl(url);
-    setAppState('transitioning');
+  // Called by PRInputForm — triggers the real API call
+  const handleScanComplete = useCallback(async (url) => {
+    try {
+      const data = await analyzePR(url);
+      setAnalysisData(data);
+      setAnalyzedUrl(url);
+      setAppState('transitioning');
+    } catch (err) {
+      console.error('[App] Analysis failed:', err);
+      setAnalysisError(err.message || 'Analysis failed. Please try again.');
+      setAppState('idle');
+    }
   }, []);
 
   // After the collapse animation fires, promote to 'dashboard'
@@ -31,6 +44,8 @@ export default function App() {
   const handleReset = useCallback(() => {
     setAppState('idle');
     setAnalyzedUrl(null);
+    setAnalysisData(null);
+    setAnalysisError(null);
   }, []);
 
   const isScanning = appState === 'scanning';
@@ -54,7 +69,7 @@ export default function App() {
 
       {/* ── DASHBOARD LAYER — sits behind, scales in ───────────────────── */}
       <AnimatePresence>
-        {showDashboard && analyzedUrl && (
+        {showDashboard && analyzedUrl && analysisData && (
           <motion.div
             key="dashboard-layer"
             className="fixed inset-0 z-10 overflow-y-auto"
@@ -81,7 +96,7 @@ export default function App() {
                     Analyze another PR
                   </motion.button>
                 </div>
-                <AnalysisDashboard prUrl={analyzedUrl} />
+                <AnalysisDashboard prUrl={analyzedUrl} data={analysisData} />
               </main>
               <footer className="py-4 text-center">
                 <p className="text-white/15 text-xs font-mono">
@@ -107,6 +122,7 @@ export default function App() {
                 appState={appState}
                 onScanStart={handleScanStart}
                 onScanComplete={handleScanComplete}
+                error={analysisError}
               />
             </main>
             <footer className="py-4 text-center">

@@ -1,27 +1,63 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cleanAIText } from '../utils/parseAIText';
+
+
+
+// Parse text into sections upfront, then reveal progressively
+function parseSections(text) {
+    if (!text) return [];
+    const sections = [];
+    const lines = text.split('\n');
+    let bodyLines = [];
+
+    const flushBody = () => {
+        const joined = bodyLines.join(' ').trim();
+        if (joined) sections.push({ isHeading: false, text: joined });
+        bodyLines = [];
+    };
+
+    for (const line of lines) {
+        const headingMatch = line.match(/^\s*#{1,6}\s+(.+)/);
+        if (headingMatch) {
+            flushBody();
+            const h = headingMatch[1].trim();
+            if (h) sections.push({ isHeading: true, text: h });
+        } else {
+            const trimmed = line.trim();
+            if (trimmed === '') {
+                flushBody();
+            } else {
+                bodyLines.push(trimmed);
+            }
+        }
+    }
+    flushBody();
+    return sections;
+}
 
 export default function AIExplanationCard({ explanation }) {
-    const [displayed, setDisplayed] = useState('');
+    const cleaned = useMemo(() => cleanAIText(explanation), [explanation]);
+    const sections = useMemo(() => parseSections(cleaned), [cleaned]);
+    const [visibleCount, setVisibleCount] = useState(0);
     const [isTyping, setIsTyping] = useState(false);
 
     useEffect(() => {
-        if (!explanation) return;
-        setDisplayed('');
+        if (!sections.length) return;
+        setVisibleCount(0);
         setIsTyping(true);
         let i = 0;
-        const speed = 18; // ms per character
+        // Reveal one section every ~120ms
         const interval = setInterval(() => {
-            if (i < explanation.length) {
-                setDisplayed(explanation.slice(0, i + 1));
-                i++;
-            } else {
+            i++;
+            setVisibleCount(i);
+            if (i >= sections.length) {
                 setIsTyping(false);
                 clearInterval(interval);
             }
-        }, speed);
+        }, 120);
         return () => clearInterval(interval);
-    }, [explanation]);
+    }, [sections]);
 
     return (
         <motion.div
@@ -66,8 +102,14 @@ export default function AIExplanationCard({ explanation }) {
                         </AnimatePresence>
                     </div>
 
-                    <p className="text-white/60 text-sm leading-relaxed font-mono">
-                        {displayed}
+                    <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+                        {sections.slice(0, visibleCount).map((s, idx) =>
+                            s.isHeading ? (
+                                <p key={idx} className="text-white font-extrabold text-base mt-4 mb-2 first:mt-0" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.3)' }}>{s.text}</p>
+                            ) : (
+                                <p key={idx} className="text-white text-sm leading-relaxed mb-3" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.15)' }}>{s.text}</p>
+                            )
+                        )}
                         {isTyping && (
                             <motion.span
                                 animate={{ opacity: [1, 0] }}
@@ -75,7 +117,7 @@ export default function AIExplanationCard({ explanation }) {
                                 className="inline-block w-0.5 h-4 bg-neon-purple ml-0.5 align-middle"
                             />
                         )}
-                    </p>
+                    </div>
                 </div>
             </div>
         </motion.div>
