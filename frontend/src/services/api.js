@@ -1,7 +1,7 @@
 // Get the API base URL from environment variables
 // In development, it will use Vite's proxy (/api -> localhost:5000)
 // In production, it will use the VITE_API_URL environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 /**
  * Call the backend analysis endpoint.
