@@ -2,7 +2,7 @@
 groq_review.py — Curated PR Review via Groq LLM
 
 Reads ML prediction results from prediction_result.json and sends them
-to Groq's API (Llama 3.3 70B) to generate a detailed, actionable
+to Groq's API (openai/gpt-oss-120b) to generate a detailed, actionable
 PR review with specific suggestions to improve merge chances.
 
 Usage:
@@ -220,10 +220,10 @@ def call_groq(system_prompt: str, user_prompt: str) -> str:
     api_key = _load_api_key()
     client = Groq(api_key=api_key)
 
-    print("[INFO] Sending data to Groq LLM (llama-3.3-70b-versatile) …")
+    print("[INFO] Sending data to Groq LLM (openai/gpt-oss-120b) …")
 
     chat_completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_prompt},
@@ -262,7 +262,7 @@ def main():
     W = 62
     header = [
         "=" * W,
-        "  CURATED PR REVIEW (powered by Groq + Llama 3.3 70B)",
+        "  CURATED PR REVIEW (powered by Groq + openai/gpt-oss-120b)",
         f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"  PR: {data.get('repo', '')}#{data.get('pr_number', '')}",
         "=" * W,
@@ -283,7 +283,7 @@ def main():
         "verdict":          data["prediction"]["verdict"],
         "confidence":       data["prediction"]["confidence"],
         "llm_review":       review,
-        "model_used":       "llama-3.3-70b-versatile",
+        "model_used":       "openai/gpt-oss-120b",
         "provider":         "groq",
         "timestamp":        datetime.now().isoformat(),
     }
